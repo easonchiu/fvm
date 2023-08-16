@@ -1,6 +1,7 @@
 package script
 
 import (
+	"errors"
 	"fmt"
 	"fvm/constant"
 	"fvm/utils"
@@ -22,33 +23,33 @@ func InstallVersion(version string) error {
 	// 在 versions 列表中查询指定版本
 	versions := json.Get("versions").Map()
 	if _, ok := versions[version]; !ok {
-		return fmt.Errorf("the \"%v\" version could not be found", version)
+		return fmt.Errorf("The \"%v\" version could not be found", version)
 	}
 
 	// 查询 tarball，这是对应版本的 .tgz 格式的下载地址
 	tarball := versions[version].Get("dist").Get("tarball").String()
 	if len(tarball) == 0 {
-		return fmt.Errorf("the \"%v\" version could not be found", version)
+		return fmt.Errorf("The \"%v\" version could not be found", version)
 	}
 
 	// 保存到该位置
-	fvmDir := utils.GetFvmDir()
-	localPath := path.Join(fvmDir, constant.FEC_BUILDER+"_"+version+".tgz")
-	localPathWithoutTgz := strings.ReplaceAll(localPath, ".tgz", "")
+	localPath := utils.GetFecBuilderPath(version)
+	localPathWithTgz := localPath + ".tgz"
 
 	// 判断 .tgz 是否存在
-	exists := utils.CheckFileExists(localPath)
+	exists := utils.CheckFileExists(localPathWithTgz)
 	if exists {
-		return fmt.Errorf("you have already installed version \"%v\"", version)
+		return fmt.Errorf("You have already installed version \"%v\"", version)
 	}
 
-	err = utils.DownloadPkgTgz(tarball, localPath)
+	// 下载 .tgz 文件
+	err = utils.DownloadPkgTgz(tarball, localPathWithTgz)
 	if err != nil {
 		return err
 	}
 
-	// 解压文件
-	err = utils.DecompressTgz(localPath, localPathWithoutTgz)
+	// 解压 .tgz 文件
+	err = utils.DecompressTgz(localPathWithTgz, localPath)
 	if err != nil {
 		return err
 	}
@@ -58,19 +59,47 @@ func InstallVersion(version string) error {
 
 // 切换到指定版本
 func SwitchVersion(version string) error {
-	list := GetLocalVersionList()
+	localPath := utils.GetFecBuilderPath(version)
 
 	// 判断本地是有否该版本
-	exists := false
-	for _, v := range list {
-		if v == version {
-			exists = true
-			break
-		}
+	exists := utils.CheckFileExists(localPath + ".tgz")
+	if !exists {
+		return fmt.Errorf("The version \"%v\" was not found\nPlease use [fvm install %v] to install it", version, version)
 	}
 
-	if !exists {
-		return fmt.Errorf("the version \"%v\" was not found\nplease use [fvm install %v] to install it", version, version)
+	// 获取 bin 目录
+	binPath, err := utils.GetNpmBinPath()
+	if err != nil {
+		return err
+	}
+
+	// 拼接 bin 文件
+	fecBuilderBin := path.Join(binPath, constant.FEC_BUILDER)
+
+	// 如果 bin 里面有该软链，删除它
+	_, err = os.Lstat(fecBuilderBin)
+	if err == nil { // 没有报错即认为文件存在，删之
+		_ = os.RemoveAll(fecBuilderBin)
+	}
+
+	// 找到目标软链地址
+	linkToPath := ""
+	{
+		bytes, err := os.ReadFile(path.Join(localPath, "package", "package.json"))
+		if err != nil {
+			return err
+		}
+		fbBinPath := gjson.GetBytes(bytes, "bin").Get("fec-builder").String()
+		if fbBinPath == "" {
+			return errors.New("Unknow error") // 正常不会进这里...
+		}
+		linkToPath = path.Join(localPath, "package", fbBinPath)
+	}
+
+	// 创建一个新的软链指向目标版本
+	err = os.Symlink(linkToPath, fecBuilderBin)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -81,6 +110,7 @@ func GetLocalVersionList() []string {
 	fvmDir := utils.GetFvmDir()
 	list := make([]string, 0)
 
+	// 读取目录的所有文件
 	entries, err := os.ReadDir(fvmDir)
 	if err != nil {
 		return list
@@ -90,6 +120,7 @@ func GetLocalVersionList() []string {
 	pathReg := regexp.MustCompile("^" + constant.FEC_BUILDER + "_[0-9.]+$")
 	filePrefix := constant.FEC_BUILDER + "_"
 
+	// 把匹配中的版本号全放到一个 list 中
 	for _, entry := range entries {
 		if entry.IsDir() && pathReg.MatchString(entry.Name()) {
 			list = append(list, strings.ReplaceAll(entry.Name(), filePrefix, ""))

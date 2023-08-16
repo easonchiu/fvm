@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -35,7 +36,7 @@ func GetYarnPackageJson(pkg string) (*gjson.Result, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("response status error with %v", resp.StatusCode)
+		return nil, fmt.Errorf("Response status error with %v", resp.StatusCode)
 	}
 
 	bytes, err := io.ReadAll(resp.Body)
@@ -67,6 +68,13 @@ func GetFvmDir() string {
 	}
 
 	return path
+}
+
+// 获得 fec-builder 所在目录
+func GetFecBuilderPath(version string) string {
+	v := path.Join(GetFvmDir(), constant.FEC_BUILDER+"_"+version)
+	fmt.Println(v)
+	return v
 }
 
 // 检查指定文件是否存在
@@ -180,6 +188,15 @@ func DecompressTgz(tgzPath, destPath string) error {
 // 获取 npm 的全局安装目录
 func GetNpmRootPath() (string, error) {
 	out, err := exec.Command("npm", "root", "-g").Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// 获取 npm 的全局 bin 目录
+func GetNpmBinPath() (string, error) {
+	out, err := exec.Command("npm", "bin", "-g").Output()
 	if err != nil {
 		return "", err
 	}

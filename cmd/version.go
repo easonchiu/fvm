@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"fvm/constant"
 
 	"github.com/spf13/cobra"
 )
@@ -11,7 +12,7 @@ func createVersionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Output version of fvm",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("1.0.0")
+			fmt.Println(constant.VERSION)
 		},
 	}
 }

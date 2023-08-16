@@ -24,13 +24,13 @@ func createInstallCmd() *cobra.Command {
 			}
 
 			fmt.Println("")
-			fmt.Printf("🎉 version %v has been installed successfully\n", args[0])
-			fmt.Printf("using [fvm use %v] to switch version %v\n", args[0], args[0])
+			fmt.Printf("🎉 Version %v has been installed successfully\n", args[0])
+			fmt.Printf("Using [fvm use %v] to switch version %v\n", args[0], args[0])
 			fmt.Println("")
 		},
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {
-				return errors.New("version required")
+				return errors.New("Version required")
 			}
 			return nil
 		},

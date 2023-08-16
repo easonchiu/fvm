@@ -29,6 +29,14 @@ func createListCmd() *cobra.Command {
 				}
 			}
 
+			// 如果没有任何版本，提示安装
+			if len(list) == 0 {
+				fmt.Println("")
+				fmt.Println("You do not have any version installed\nPlease use \"fvm install [version]\" to install")
+				fmt.Println("")
+				return
+			}
+
 			// 打印版本列表
 			fmt.Println("")
 			for _, v := range list {
