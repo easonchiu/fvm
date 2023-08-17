@@ -2,7 +2,7 @@
 
 用于控制和管理全局安装的 fec-builder 版本
 
-该工具请全部安装，即`npm i -g fec-builder-version-manager`
+该工具请全局安装，即`npm i -g fec-builder-version-manager`
 
 使用姿势
 
