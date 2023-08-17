@@ -7,7 +7,7 @@
 使用姿势
 
 - `fvm` 选项方式切换当前版本
-- `fvm use 2.7.0` 指定切换当前版本
+- `fvm use [version]` 指定切换当前版本
 - `fvm install [version]` 安装指定版本
 - `fvm remove [version]` 删除指定版本
 - `fvm list` 查看当前已安装的版本
