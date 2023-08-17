@@ -13,14 +13,22 @@ var rootCmd = &cobra.Command{
 	Use:   "fvm",
 	Short: "fvm provides an interface to manage fec-builder versions.",
 	Run: func(cmd *cobra.Command, args []string) {
+		list := script.GetLocalVersionList()
 		currentVersion, _ := script.GetCurrentVersion()
+
+		if len(list) == 0 {
+			fmt.Println("")
+			fmt.Println("You do not have any version installed\nPlease use \"fvm install [version]\" to install")
+			fmt.Println("")
+			return
+		}
 
 		question := []*survey.Question{
 			{
 				Name: "Version",
 				Prompt: &survey.Select{
 					Message: "Choose a version:",
-					Options: script.GetLocalVersionList(),
+					Options: list,
 					Default: currentVersion,
 				},
 			},

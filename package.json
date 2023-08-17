@@ -1,6 +1,6 @@
 {
   "name": "fec-builder-version-manager",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "fec-builder version manager",
   "scripts": {
     "start": "go run fvm.go",

@@ -7,4 +7,4 @@ const YARN_PREFIX = "https://registry.yarnpkg.com/"
 const FEC_BUILDER = "fec-builder"
 
 // version
-const VERSION = "1.0.0"
+const VERSION = "1.0.1"
