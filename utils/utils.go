@@ -70,14 +70,12 @@ func GetFvmDir() string {
 	return path
 }
 
-// 获得 fec-builder 所在目录
-func GetFecBuilderPath(version string) string {
-	v := path.Join(GetFvmDir(), constant.FEC_BUILDER+"_"+version)
-	fmt.Println(v)
-	return v
+// 获得 fec-builder 在 fvm 中所在目录
+func GetFvmFecBuilderPath(version string) string {
+	return path.Join(GetFvmDir(), constant.FEC_BUILDER+"_"+version)
 }
 
-// 检查指定文件是否存在
+// 检查指定文件(或目录)是否存在
 func CheckFileExists(filePath string) bool {
 	_, err := os.Stat(filePath)
 	if err != nil {
@@ -176,6 +174,12 @@ func DecompressTgz(tgzPath, destPath string) error {
 
 			// Write the file contents to the new file
 			_, err = io.Copy(file, tarReader)
+			if err != nil {
+				return err
+			}
+
+			// 设置执行权限
+			err = file.Chmod(0755) // rwxr-xr-x
 			if err != nil {
 				return err
 			}

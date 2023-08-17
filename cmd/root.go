@@ -35,7 +35,17 @@ var rootCmd = &cobra.Command{
 			return
 		}
 
-		script.SwitchVersion(answers.Version)
+		err = script.SwitchVersion(answers.Version)
+		if err != nil {
+			fmt.Println("")
+			fmt.Println(err)
+			fmt.Println("")
+			return
+		}
+
+		fmt.Println("")
+		fmt.Printf("🎉 Switched to version %v\n", answers.Version)
+		fmt.Println("")
 	},
 }
 
@@ -44,6 +54,7 @@ func init() {
 	rootCmd.AddCommand(createInstallCmd())
 	rootCmd.AddCommand(createUseCmd())
 	rootCmd.AddCommand(createListCmd())
+	rootCmd.AddCommand(createRemoveCmd())
 
 	// 隐藏 completion 功能，不要问原因... 没细看是啥作用，所以隐藏了
 	rootCmd.CompletionOptions.HiddenDefaultCmd = true

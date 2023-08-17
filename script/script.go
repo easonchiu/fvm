@@ -6,6 +6,7 @@ import (
 	"fvm/constant"
 	"fvm/utils"
 	"os"
+	"os/exec"
 	"path"
 	"regexp"
 	"strings"
@@ -33,23 +34,35 @@ func InstallVersion(version string) error {
 	}
 
 	// 保存到该位置
-	localPath := utils.GetFecBuilderPath(version)
-	localPathWithTgz := localPath + ".tgz"
+	fvmFecBuilderPath := utils.GetFvmFecBuilderPath(version)
+	fvmFecBuilderTgz := fvmFecBuilderPath + ".tgz"
 
-	// 判断 .tgz 是否存在
-	exists := utils.CheckFileExists(localPathWithTgz)
+	// 判断版本是否存在
+	exists := utils.CheckFileExists(fvmFecBuilderPath)
 	if exists {
 		return fmt.Errorf("You have already installed version \"%v\"", version)
 	}
 
 	// 下载 .tgz 文件
-	err = utils.DownloadPkgTgz(tarball, localPathWithTgz)
+	err = utils.DownloadPkgTgz(tarball, fvmFecBuilderTgz)
 	if err != nil {
 		return err
 	}
 
 	// 解压 .tgz 文件
-	err = utils.DecompressTgz(localPathWithTgz, localPath)
+	err = utils.DecompressTgz(fvmFecBuilderTgz, fvmFecBuilderPath)
+	if err != nil {
+		return err
+	}
+
+	// 执行 npm install
+	cmd := exec.Command("npm", "install")
+	cmd.Dir = path.Join(fvmFecBuilderPath, "package")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	// 执行命令
+	err = cmd.Run()
 	if err != nil {
 		return err
 	}
@@ -59,22 +72,40 @@ func InstallVersion(version string) error {
 
 // 切换到指定版本
 func SwitchVersion(version string) error {
-	localPath := utils.GetFecBuilderPath(version)
+	fvmFecBuilderPath := utils.GetFvmFecBuilderPath(version)
 
 	// 判断本地是有否该版本
-	exists := utils.CheckFileExists(localPath + ".tgz")
+	exists := utils.CheckFileExists(fvmFecBuilderPath)
 	if !exists {
 		return fmt.Errorf("The version \"%v\" was not found\nPlease use [fvm install %v] to install it", version, version)
 	}
 
+	// 找到在 npm root 中的文件，删除它
+	npmRootPath, err := utils.GetNpmRootPath()
+	if err != nil {
+		return err
+	}
+
+	npmRootFecBuilder := path.Join(npmRootPath, constant.FEC_BUILDER)
+	err = os.RemoveAll(npmRootFecBuilder)
+	if err != nil {
+		return err
+	}
+
+	// 在 npm root 中创建名为 fec-builder 的软链指向目标版本
+	err = os.Symlink(path.Join(fvmFecBuilderPath, "package"), npmRootFecBuilder)
+	if err != nil {
+		return err
+	}
+
 	// 获取 bin 目录
-	binPath, err := utils.GetNpmBinPath()
+	npmBinPath, err := utils.GetNpmBinPath()
 	if err != nil {
 		return err
 	}
 
 	// 拼接 bin 文件
-	fecBuilderBin := path.Join(binPath, constant.FEC_BUILDER)
+	fecBuilderBin := path.Join(npmBinPath, constant.FEC_BUILDER)
 
 	// 如果 bin 里面有该软链，删除它
 	_, err = os.Lstat(fecBuilderBin)
@@ -83,21 +114,21 @@ func SwitchVersion(version string) error {
 	}
 
 	// 找到目标软链地址
-	linkToPath := ""
+	readlinkToPath := ""
 	{
-		bytes, err := os.ReadFile(path.Join(localPath, "package", "package.json"))
+		bytes, err := os.ReadFile(path.Join(npmRootFecBuilder, "package.json"))
 		if err != nil {
 			return err
 		}
-		fbBinPath := gjson.GetBytes(bytes, "bin").Get("fec-builder").String()
-		if fbBinPath == "" {
+		fbBin := gjson.GetBytes(bytes, "bin").Get("fec-builder").String()
+		if len(fbBin) == 0 {
 			return errors.New("Unknow error") // 正常不会进这里...
 		}
-		linkToPath = path.Join(localPath, "package", fbBinPath)
+		readlinkToPath = path.Join(npmRootFecBuilder, fbBin)
 	}
 
-	// 创建一个新的软链指向目标版本
-	err = os.Symlink(linkToPath, fecBuilderBin)
+	// 在 npm bin 中创建一个新的软链指向 npm root 中的 fec-builder
+	err = os.Symlink(readlinkToPath, fecBuilderBin)
 	if err != nil {
 		return err
 	}
@@ -147,4 +178,26 @@ func GetCurrentVersion() (string, error) {
 	result := gjson.GetBytes(bytes, "version")
 
 	return result.String(), nil
+}
+
+// 删除版本
+func RemoveVersion(version string) error {
+	cur, err := GetCurrentVersion()
+	if err != nil {
+		return err
+	}
+
+	if cur == version {
+		return errors.New("Cannot remove the active version")
+	}
+
+	p := utils.GetFvmFecBuilderPath(version)
+
+	exists := utils.CheckFileExists(p)
+	if !exists {
+		return fmt.Errorf("Version \"%v\" not found", version)
+	}
+
+	_ = os.Remove(p + ".tgz")
+	return os.RemoveAll(p)
 }
