@@ -23,6 +23,11 @@ var rootCmd = &cobra.Command{
 			return
 		}
 
+		// 没有安装过时，当前默认指向 list 的第一项
+		if len(currentVersion) == 0 {
+			currentVersion = list[0]
+		}
+
 		question := []*survey.Question{
 			{
 				Name: "Version",
